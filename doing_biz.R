@@ -1,0 +1,465 @@
+#import libraries
+library(rgeos)
+library(sp) ## spatial data in R
+library(rgdal) ## r bindings to geospatial data abstraction library
+library(maptools)
+library(broom)
+library(dplyr)
+library(ggplot2)
+library(ggmap)
+library(readr)
+library(haven)
+library(stringr)
+library(tidyr)
+library(RColorBrewer)
+library(extrafont)
+library(directlabels)
+library(reshape2)
+library(viridis)
+library(tidyverse)
+library(extrafont)
+library(lubridate)
+library(slopegraph)
+library(reshape2)
+loadfonts()
+
+doingbiz <- read.csv("data/doingbusiness.csv")
+codes <- read.csv("data/UNSD_Methodology.csv")
+
+#to find different names
+#doingbiz[!(doingbiz$Economy %in% codes$Country.or.Area),]$Economy
+#codes[!(codes$Country.or.Area%in% doingbiz$Economy),]$Country.or.Area
+
+#Update the differences in the country names
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Bahamas, The" , "Bahamas")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Congo, Dem Rep" , "Democratic Republic of the Congo")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Congo, Rep", "Congo")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Cote dâIvoire", "CÃ´te d'Ivoire")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Egypt, Arab Rep", "Egypt")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Gambia, The", "Gambia")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Iran, Islamic Rep", 'Iran (Islamic Republic of)')
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Korea, Rep", "Republic of Korea")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Kyrgyz Republic", "Kyrgyzstan")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Lao PDR", "Lao People's Democratic Republic")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Macedonia, FYR", "Macedonia")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Micronesia, Fed Sts", "Micronesia (Federated States of)")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Puerto Rico US", "Puerto Rico")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "SÃ£o TomÃ© and PrÃ�ncipe", "Sao Tome and Principe")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Slovak Republic", "Slovakia")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "St ", "Saint ")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Tanzania", "United Republic of Tanzania")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "United Kingdom", "United Kingdom of Great Britain and Northern Ireland")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "United States", "United States of America")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Venezuela, RB", "Venezuela (Bolivarian Republic of)")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "West Bank and Gaza", "State of Palestine")
+doingbiz$Economy <- str_replace(doingbiz$Economy, "Yemen, Rep", "Yemen")
+#doingbiz$Economy <- str_replace(doingbiz$Economy, "" , "")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "Bolivia (Plurinational State of)", "Bolivia")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "Czechia", "Czech Republic")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "The former Yugoslav Republic of Macedonia", "Macedonia")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "Republic of Moldova", "Moldova")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "Viet Nam", "Vietnam")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "Guam", "Micronesia (Federated States of)")
+codes$Country.or.Area <- str_replace(codes$Country.or.Area, "China, Hong Kong Special Administrative Region", "Hong Kong SAR, China")
+#codes$Country.or.Area <- str_replace(codes$Country.or.Area, "", "")
+#Removing city names
+doingbiz <- doingbiz[(!(doingbiz$Economy %in% c("Bangladesh - Chittagong", "Bangladesh - Dhaka", "Bolivia", "Brazil - Rio de Janeiro", "Brazil - SÃ£o Paulo", "China - Beijing", "China - Shanghai", "India - Delhi", "India - Mumbai", "Indonesia - Jakarta", "Indonesia - Surabaya", "Japan - Osaka", "Japan - Tokyo", "Kosovo",  "Mexico - Mexico City","Mexico - Monterrey",  "Nigeria - Kano", "Nigeria - Lagos", "Pakistan - Karachi",  "Pakistan - Lahore",   "Russian Federation - Moscow", "Russian Federation - Saint Petersburg", "Taiwan, China", "United States of America - Los Angeles", "United States of America - New York City"))),]
+#Merging codes and doingbiz
+doingbiz <- merge(doingbiz, select(codes, c("Country.or.Area", "ISO.alpha3.Code")), by.x = "Economy", by.y = "Country.or.Area", all = FALSE)
+
+doingbiz$Year <- gsub("DB*", "", doingbiz$Year) 
+doingbiz$Year <- as.numeric(doingbiz$Year)
+#doingbiz <- doingbiz %>% filter(!str_detect(Economy, "-"))
+
+#Only distance to frontier data
+frontier <- doingbiz %>% group_by(region,incomegroup, Year) %>% 
+  summarise(StartingBusiness = mean(Starting.a.Business...DTF, rm.na = TRUE), 
+            GettingConstructionPermits = mean(Dealing.with.Construction.Permits...DTF, rm.na = TRUE), 
+            GettingElectricity = mean(Getting.Electricity...DTF, rm.na = TRUE), 
+            RegisteringProperty = mean(Registering.Property...DTF, rm.na = TRUE), 
+            GettingCredit = mean(Getting.Credit...DTF, rm.na = TRUE), 
+            ProtectingInvestor = mean(Protecting.Minority.Investors...DTF, rm.na = TRUE), 
+            PayingTaxes = mean(Paying.Taxes...DTF, rm.na = TRUE), 
+            Trading = mean(Trading.across.Borders...DTF, rm.na = TRUE), 
+            EnforcingContracts = mean(Enforcing.Contracts...DTF, rm.na = TRUE)) 
+
+## Theme
+theme_sm <- function () { 
+  theme_grey(base_size=9, base_family="Avenir") %+replace% 
+    theme(
+      plot.background = element_blank(),
+      panel.background  = element_rect(fill="gray96", colour=NA), 
+      #plot.background = element_rect(fill = "lightskyblue1",colour = "pink",size = 0.5, linetype = "longdash"),
+      panel.border = element_rect(fill = NA, colour = "gray60", size = 0.5), 
+      panel.grid.major = element_line(colour = "grey90", size = 0.2), 
+      panel.grid.minor = element_line(colour = "grey98", size = 0.5), 
+      legend.background = element_rect(fill="transparent", colour=NA),
+      legend.key = element_rect(fill="transparent", colour=NA),
+      legend.position = "right", 
+      plot.title = element_text(size=14, family = "Georgia", face = "bold", hjust = 0),
+      plot.subtitle = element_text(size=10, hjust = 0),
+      axis.title = (element_text(size=10)),
+      plot.caption = (element_text(size = 6, hjust = 1, face = "italic"))
+      #legend.key = element_rect(fill = "lightskyblue1", color = "lightskyblue1"),
+      #legend.background = element_rect( fill = "lightskyblue1",color = "pink", size = 0.5,linetype = "longdash"),
+    )
+}
+
+theme_sm_axis <- function() {
+  theme(axis.line.y = element_line(colour = "black", size = 0.5),
+        axis.line.x = element_line(colour = "black", size = 0.5),
+        panel.border = element_blank(),
+        panel.background  = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.minor.y = element_line(colour = "grey80", size = 0.2),
+        panel.grid.major.y = element_line(colour = "grey80", size = 0.2)
+  )
+}
+
+### Color Palatte
+continuous_pal = 'YlGn'
+discrete_pal = c('#1b85b8', "#34495e", '#810038', '#ae5a41', '#5a5255','#c3cb71' , '#db9e1d',  '#784418', '#51001f', '#e5d6bb')
+qualitative_pal = 'Set2'
+
+
+################################# GRAPH 1 ###########################################
+
+ggplot(data = melt(frontier, id.var = c("Year", "region", "incomegroup"), variable.name = "Regulatory_Process", value.name = "Score"),
+       aes(x = Year, y = Score, fill = factor(incomegroup, levels = c("High income", "Upper middle income", "Lower middle income",  "Low income")))) + 
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = discrete_pal)+
+  facet_wrap(~Regulatory_Process, ncol = 3) +
+  guides(fill=guide_legend(title = "Income Groups")) +
+  scale_y_continuous() +
+  theme_light() +
+  theme_sm() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distance to Frontier across Years \n",
+       subtitle = "Average year on year improvement in distance to frontier scores for each income group. \n",
+       x = "Year", y = "Aggregate Frontier Scores",
+       caption = 'Data from WorldBank:doingbusiness')
+
+ggsave("./plots/graph1.jpeg")
+
+################################# GRAPH 2 ###########################################
+
+
+# Read the shapefiles into R
+country <- readOGR(dsn=path.expand("data/ne_110m_admin_0_countries"), layer = "ne_110m_admin_0_countries")
+
+## SpatialPolygonsDataFrame
+class(country)
+
+# Let's transform them into tidy data that ggplot can use
+country.points <- tidy(country, region = "ADM0_A3_IS")
+
+# And join in the original variables from the shapefile
+country.df <- full_join(country.points, country@data, by = c("id" = "ADM0_A3_IS"))
+
+
+#join with the geospatial data
+country.df <- full_join(country.df, select(doingbiz, c("ISO.alpha3.Code", "Economy", "Ease.of.Doing.Business.Rank", "Year")) %>% filter(Year == 2017), by = c("id" = "ISO.alpha3.Code"))
+
+#Reorder data
+country.df <- country.df[order(country.df$group), ]
+country.df <- country.df[order(country.df$order), ]
+
+#Map
+ggplot(data=country.df, aes(long, lat, group=group, fill=Ease.of.Doing.Business.Rank )) + 
+  geom_polygon() +
+  geom_path(color="white") + 
+  scale_fill_viridis() +
+  scale_x_continuous() + scale_y_continuous() + 
+  theme_sm() +
+  theme(panel.background  = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.direction = 'horizontal',
+        legend.position = "bottom",
+        legend.key.size	 = unit(0.5,"cm")) +
+  labs(x = "Longitude", y = "Latitude", title = "Ease of Doing Business Ranking in 2017 \n", 
+       subtitle = "Worst Ranked countries are african, south america and south asia. \n",
+       caption = 'Data from WorldBank:doingbusiness')
+
+ggsave("./plots/graph2.jpeg")
+
+################################# GRAPH 3 ###########################################
+
+
+#High Income Group
+ggplot(data = filter(doingbiz, incomegroup == "High income"), aes(x = Year, y = Overall.DTF, color = incomegroup)) + 
+  geom_line(stat = "identity") + facet_wrap(~Economy, ncol = 10) + 
+  scale_y_continuous() + scale_x_continuous() + 
+  scale_color_manual(values = '#1b85b8') +
+  guides(color = F) +
+  theme_sm() + theme( strip.background = element_blank(), axis.text.x = element_blank()) +
+  labs(x = "Overall DTF", y = "Years", title = "Change in High Income countries performance 2004-17")
+ggsave("./plots/graph3_1.jpeg")
+
+#Upper Middle Income Group
+ggplot(data = filter(doingbiz, incomegroup == "Upper middle income"), aes(x = Year, y = Overall.DTF, color = incomegroup)) + 
+  geom_line(stat = "identity") + facet_wrap(~Economy, ncol = 10) + 
+  scale_color_manual(values = "#34495e") +
+  scale_y_continuous() + scale_x_continuous() + 
+  guides(color = F) +
+  theme_sm() + theme( strip.background = element_blank(), axis.text.x = element_blank()) +
+  labs(x = "Overall DTF", y = "Years", title = "Change in Upper middle Income countries performance 2004-17")
+ggsave("./plots/graph3_2.jpeg")
+
+# Lower Middle income Group
+ggplot(data = filter(doingbiz, incomegroup == "Lower middle income"), aes(x = Year, y = Overall.DTF, color = incomegroup)) + 
+  geom_line(stat = "identity") + facet_wrap(~Economy, ncol = 10) + 
+  scale_color_manual(values = '#c3cb71') +
+  scale_y_continuous() + scale_x_continuous() + 
+  guides(color = F) +
+  theme_sm() + theme( strip.background = element_blank(), axis.text.x = element_blank()) +
+  labs(x = "Overall DTF", y = "Years", title = "Change in Lower middle Income countries performance 2004-17")
+ggsave("./plots/graph3_3.jpeg")
+
+#Low Income Group
+ggplot(data = filter(doingbiz, incomegroup == "Low income"), aes(x = Year, y = Overall.DTF, color = incomegroup)) + 
+  geom_line(stat = "identity") + facet_wrap(~Economy, ncol = 10) + 
+  scale_color_manual(values = '#ae5a41') +
+  scale_y_continuous() + scale_x_continuous() + 
+  guides(color = F) +
+  theme_sm() + theme( strip.background = element_blank(), axis.text.x = element_blank()) +
+  labs(x = "Overall DTF", y = "Years", title = "Change in Low Income countries performance 2004-17"
+       , caption = 'Data from WorldBank:doingbusiness')
+ggsave("./plots/graph3_4.jpeg")
+
+
+################################# GRAPH 4 ###########################################
+
+slope_doingbiz <- read.csv("data/slope_doingbiz.csv")
+
+#remove till 2009 as their data is incomplete
+slope_doingbiz <- slope_doingbiz[, 1:9]
+
+
+#add ranks
+rank <- seq(1,188)
+
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2017', decreasing = TRUE),]
+slope_doingbiz$'X2017' <- rank
+#taking a sample of 72 countries
+slope_doingbiz1 <- slope_doingbiz[1:10, 1:9]
+slope_doingbiz2 <- slope_doingbiz[55:75, 1:9]
+slope_doingbiz3 <- slope_doingbiz[110:130, 1:9]
+
+slope_doingbiz <- rbind(slope_doingbiz1, slope_doingbiz2, slope_doingbiz3)
+#add ranks
+rank <- seq(1,52)
+slope_doingbiz$'X2017' <- rank
+
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2010', decreasing = TRUE),]
+slope_doingbiz$'X2010' <- rank
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2011', decreasing = TRUE),]
+slope_doingbiz$'X2011' <- rank
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2012', decreasing = TRUE),]
+slope_doingbiz$'X2012' <- rank
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2013', decreasing = TRUE),]
+slope_doingbiz$'X2013' <- rank
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2014', decreasing = TRUE),]
+slope_doingbiz$'X2014' <- rank
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2015', decreasing = TRUE),]
+slope_doingbiz$'X2015' <- rank
+
+slope_doingbiz <- slope_doingbiz[order(slope_doingbiz$'X2016', decreasing = TRUE),]
+slope_doingbiz$'X2016' <- rank
+
+
+rownames(slope_doingbiz) <- slope_doingbiz[,1]
+slope_doingbiz <- slope_doingbiz[,-1]
+slope_doingbiz <- slope_doingbiz[c('X2010', 'X2011', 'X2012', 'X2013', 'X2014', 'X2015', 'X2016', 'X2017')]
+
+cols <- rep("#9A9B94", 52)
+cols[50] <- '#810038'  #india
+cols[7] <- '#1b85b8' #USA
+cols[28] <- "#34495e" #South Africa
+cols[15] <- '#ae5a41' #Rwanda
+
+widths <- rep(0.15, 52)
+widths[c(7, 15,28,50)] <- 1
+
+ggslopegraph(slope_doingbiz,  offset.x = 0.15, 
+             yrev = TRUE, col.lines = cols, col.lab = cols, 
+             col.num=cols, lwd=widths) +
+  theme_sm() +
+  theme(plot.background = element_blank(),
+        panel.background  = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  labs(x = "Year", y = "Ranking based on random sample of countries", title = "Change in performance of countries", subtitle = "We can clearly see a pattern in improvement of Rwanda and detoriaration in South Africa", caption = 'Data from http://www.enterprisesurveys.org')
+ggsave("./plots/graph4.jpeg", height=10, width =10)
+
+
+
+################################# GRAPH 5 ###########################################
+
+data <- doingbiz %>% filter(Economy == "South Africa") %>% group_by(Year) %>% 
+  summarise(StartingBusiness = mean(Starting.a.Business...DTF, rm.na = TRUE), 
+            GettingConstructionPermits = mean(Dealing.with.Construction.Permits...DTF, rm.na = TRUE), 
+            GettingElectricity = mean(Getting.Electricity...DTF, rm.na = TRUE), 
+            RegisteringProperty = mean(Registering.Property...DTF, rm.na = TRUE), 
+            GettingCredit = mean(Getting.Credit...DTF, rm.na = TRUE), 
+            ProtectingInvestor = mean(Protecting.Minority.Investors...DTF, rm.na = TRUE), 
+            PayingTaxes = mean(Paying.Taxes...DTF, rm.na = TRUE), 
+            Trading = mean(Trading.across.Borders...DTF, rm.na = TRUE), 
+            EnforcingContracts = mean(Enforcing.Contracts...DTF, rm.na = TRUE)) %>%
+  melt(id.vars = "Year", variable.name = "Regulatory_Process", value.name = "Score")
+
+ggplot() + 
+  geom_line(data = filter(data, (Regulatory_Process != "Trading" & Regulatory_Process != "GettingCredit" & Regulatory_Process != "ProtectingInvestor")), aes(x = Year, y = Score, group = Regulatory_Process), color = 'gray86') + 
+  geom_line(data = filter(data, (Regulatory_Process == "Trading" | Regulatory_Process == "GettingCredit" | Regulatory_Process == "ProtectingInvestor")), aes(x = Year, y = Score, color = Regulatory_Process)) + 
+  scale_x_discrete(expand=c(0, 1)) +
+  geom_dl(data = filter(data, (Regulatory_Process == "Trading" | Regulatory_Process == "GettingCredit" | Regulatory_Process == "ProtectingInvestor")), aes(x = Year, y = Score,label = Regulatory_Process), method = list(dl.trans(x = x - 0.2), dl.combine("first.points"), cex = 0.6)) +
+  guides(color = F) +
+  scale_color_manual(values = discrete_pal)+
+  theme_sm() + theme(plot.background = element_blank(),
+                     panel.background  = element_blank(),
+                     panel.grid.major = element_blank(), 
+                     panel.grid.minor = element_blank(),
+                     panel.grid.minor.x = element_line(colour = "grey80", size = 0.2),
+                     panel.grid.major.x = element_line(colour = "grey80", size = 0.2)) +
+  labs(x = "Year of Reference", y = "Scores Across different Regulatory Measures", title = "Performace drop by South Africa 2004-17 \n", 
+       subtitle = "There has been a steep drop in Sgp's performance in the financial aspects. However, it is still ranked 7 overall \n", 
+       caption = 'Data from WorldBank:doingbusiness')
+rm(data)
+ggsave("./plots/graph5.jpeg")
+
+
+########################################### GRAPH 6 ###########################################
+
+
+data <- doingbiz %>% filter(Economy == "South Africa" | Economy == "India" | Economy == "Rwanda" | Economy == "United States of America") %>% 
+  filter(Year == 2014 | Year == 2017) %>%
+  group_by(Year, Economy) %>% 
+  summarise(StartingBusiness = mean(Starting.a.Business...DTF, rm.na = TRUE), 
+            GettingConstructionPermits = mean(Dealing.with.Construction.Permits...DTF, rm.na = TRUE), 
+            GettingElectricity = mean(Getting.Electricity...DTF, rm.na = TRUE), 
+            RegisteringProperty = mean(Registering.Property...DTF, rm.na = TRUE), 
+            GettingCredit = mean(Getting.Credit...DTF, rm.na = TRUE), 
+            ProtectingInvestor = mean(Protecting.Minority.Investors...DTF, rm.na = TRUE), 
+            PayingTaxes = mean(Paying.Taxes...DTF, rm.na = TRUE), 
+            Trading = mean(Trading.across.Borders...DTF, rm.na = TRUE), 
+            EnforcingContracts = mean(Enforcing.Contracts...DTF, rm.na = TRUE)) %>%
+  melt(id.var = c("Year", 'Economy'), variable.name = "Regulatory_Process", 
+       value.name = "Score")
+data$Year <- as.character(data$Year)
+ggplot(filter(data, Regulatory_Process == 'GettingConstructionPermits'| Regulatory_Process == 'GettingElectricity'|
+                Regulatory_Process == 'RegisteringProperty' | Regulatory_Process == 'EnforcingContracts'),
+       aes(x = Year, y = log(Score))) +
+  guides(color = guide_legend("Country")) +
+  geom_point(aes(color = Economy), size = 2)+
+  geom_line(aes(x = Year, y = log(Score), group = Economy, color = Economy)) +
+  facet_wrap(~Regulatory_Process, ncol = 2) +
+  scale_color_manual(values = discrete_pal)+
+  geom_text(aes(x = Year, label = Score, y = log(Score)),
+            size = 2,  hjust = 0, check_overlap = TRUE) +
+  theme_sm() + theme(legend.position = "bottom") + theme_sm_axis() + 
+  labs(x = "", y = "Performance of the country",
+       title = "Comparative performance between 2014 and 2016 \n",
+       caption = 'Data from WorldBank:doingbusiness')
+ggsave("./plots/graph6_1.jpeg")
+
+#Next 4 features
+ggplot(filter(data, Regulatory_Process != 'GettingConstructionPermits'& Regulatory_Process != 'GettingElectricity'&
+                Regulatory_Process != 'StartingBusiness' & Regulatory_Process != 'RegisteringProperty' & Regulatory_Process != 'EnforcingContracts'),
+       aes(x = Year, y = log(Score))) +
+  guides(color = guide_legend("Country")) +
+  geom_point(aes(color = Economy), size = 2)+
+  geom_line(aes(x = Year, y = log(Score), group = Economy, color = Economy)) +
+  facet_wrap(~Regulatory_Process, ncol = 2) +
+  scale_color_manual(values = discrete_pal)+
+  geom_text(aes(x = Year, label = Score, y = log(Score)),
+            size = 3,  hjust = 0, check_overlap = TRUE) +
+  theme_sm() + theme(legend.position = "bottom") + theme_sm_axis() + 
+  labs(x = "Year of Interest", y = "Performance of the country",
+       caption = 'Data from WorldBank:doingbusiness')
+ggsave("./plots/graph6_2.jpeg")
+
+
+################################# GRAPH 7 ###########################################
+
+entrep_data <- read_csv("data/obstacle.csv")
+cols.num <- c('Access to finance',	'Access to land',	'Business licensing and permits',	'Corruption',	'Courts',	'Crime, theft and disorder',	'Customs and trade regulations',	'Electricity',	'Inadequately educated workforce',	'Labor regulations', 'Political instability',	'Practices of the informal sector',	'Tax administration',	'Tax rates', 'Transportation')
+entrep_data[cols.num] <- sapply(entrep_data[cols.num],as.numeric)
+#filtering data to contain only current data
+rwanda <- filter(entrep_data, (Economy == "Rwanda" | Economy == "Sub-Saharan Africa") & (Year == 2011 | is.na(Year)) & is.na(Subgroup)) %>%
+  select(-(Year:`Average/SE/N`), -`Business licensing and permits`, -Courts, - `Crime, theft and disorder`, - `Inadequately educated workforce`, -`Labor regulations`) %>%
+  melt(id.var = c("Economy"), variable.name = "Obstacle", value.name = "Percentage")
+
+levels(rwanda$Obstacle) <- gsub(" ", "\n", levels(rwanda$Obstacle))
+ggplot() + 
+  geom_bar(data = filter(rwanda, Economy == "Rwanda"), aes(x = Obstacle, y = Percentage), stat = "Identity", fill = '#810038') +
+  geom_point(data = filter(rwanda, Economy == "Sub-Saharan Africa"), aes(x = Obstacle, y = Percentage), fill = "orange", shape = 23) +
+  guides(fill = guide_legend(title = "Sub-Saharan Africa")) +
+  theme_sm() + theme_sm_axis() + theme(legend.position = "top") +
+  labs(x = "Obstacles faced by firms", y = "Percent of Firms", title = "Rwanda's percentage of firms that identify the problem \n as the biggest obstacle, 2011 \n",
+       subtitle = "Top obstacles identified by Rwanda's firms benchmarked against the regional average (sub saharan africa)", 
+       caption = 'Data from http://www.enterprisesurveys.org')
+ggsave("./plots/graph7.jpeg")
+
+
+################################# GRAPH 8 ###########################################
+
+#Graph 7 : Rwanda's Improvement
+entrep_data <- read_csv("data/obstacle.csv")
+rwanda <- filter(entrep_data, Economy == "Rwanda" & `Subgroup Level` == "All")
+cols.num <- c('Access to finance',	'Access to land',	'Business licensing and permits',	'Corruption',	'Courts',	'Crime, theft and disorder',	'Customs and trade regulations',	'Electricity',	'Inadequately educated workforce',	'Labor regulations', 'Political instability',	'Practices of the informal sector',	'Tax administration',	'Tax rates', 'Transportation')
+rwanda[cols.num] <- sapply(rwanda[cols.num],as.numeric)
+rwanda <- mutate(rwanda, Other = `Business licensing and permits` +	`Corruption` + `Courts` +	`Crime, theft and disorder` + `Customs and trade regulations` + `Labor regulations` + `Inadequately educated workforce`,
+                 Tax  = `Tax administration` + `Tax rates`) %>%
+  select(-Subgroup, -`Subgroup Level`, -`Average/SE/N`, -Economy, -(`Business licensing and permits`: `Customs and trade regulations`), -`Labor regulations`, -`Tax rates`, - `Tax administration`, -`Inadequately educated workforce`) %>%
+  melt(id.var = c("Year", "Top Subgroup Level"), variable.name = "Obstacle", value.name = "Percentage")
+
+ggplot(data=filter(rwanda) , aes(x = "", y = Percentage, fill = Obstacle)) +
+  facet_grid(Year ~`Top Subgroup Level`) +
+  geom_col(width = 1) +
+  scale_fill_manual(values = discrete_pal)+
+  coord_polar("y") +
+  theme_sm() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  labs(x = "", y = "", title = "Rwanda's Profile in terms of Business Environment \n Obstacles (2006 vs 2011) \n",
+       subtitle = "In 2006 20 firms were surveyed in Butare (9 in 2011) and 192 in Kigali (232 in 2011).
+Inacessibility to electricity has stopped being an issue. However, an increase in 
+practices of the informal sector seems to be a rising concern. Tax and Regulation 
+is still a big concern.  \n", 
+       caption = 'Data from http://www.enterprisesurveys.org')
+ggsave("./plots/graph8.jpeg")
+
+
+
+################################# GRAPH 9 ###########################################
+
+
+female <- read_csv("data/gender.csv") %>% 
+  filter((Economy == "Rwanda" | Economy == "Sub-Saharan Africa") & (Year == 2011 | is.na(Year)) & is.na(Subgroup)) %>%
+  select(Economy, `Proportion of permanent full-time workers that are female (%)`, `Percent of firms with female participation in ownership`)
+ownership <- read_csv("data/firm.csv") %>%
+  filter((Economy == "Rwanda" | Economy == "Sub-Saharan Africa") & (Year == 2011 | is.na(Year)) & is.na(Subgroup)) %>%
+  select(Economy, `Proportion of private domestic ownership in a firm (%)`, `Percent of firms with at least 10% of foreign ownership`, `Percent of firms with at least 10% of government/state ownership`,`Percent of firms with an internationally-recognized quality certification`)
+firms <- merge(female, ownership, by = "Economy") %>%
+  melt(id.var = c('Economy'), variable.name = "Charcteristic", value.name = "Percentage")
+firms$Percentage <- as.numeric(firms$Percentage)
+
+levels(firms$Charcteristic) <- gsub(" ", "\n", levels(firms$Charcteristic))
+ggplot(firms, aes(x = Charcteristic, y = Percentage, fill = Economy)) + 
+  geom_bar(position = 'dodge', stat = 'identity')+
+  scale_fill_manual(values = discrete_pal) +
+  theme_sm() +
+  theme(legend.position = "bottom",
+        legend.key.size	 = unit(0.5,"cm")) +
+  labs(x = "", y = "Percentage of Firms", title = "Rwanda's Country Profile (2011) \n",
+       subtitle = "It is interesting to observe that % ownership by women is higher than the working full time \nfemale population. Most of the firms are private run as compared to government participation.\n", 
+       caption = 'Data from http://www.enterprisesurveys.org')
+ggsave("./plots/graph9.jpeg")
+
