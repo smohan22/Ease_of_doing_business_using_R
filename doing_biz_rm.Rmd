@@ -1,0 +1,133 @@
+---
+title: 'Comparing Business Regulation for Domestic Firms in 190 Economies: Equal Opportunity
+  for All?'
+author: "Shambhavi Mohan"
+output:
+  html_document: 
+    font-size: 16pt
+    font-family: Helvetica
+  
+urlcolor: green
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Background
+The opportunity to find a job or ease of doing business can help people come out of poverty or prevent them from going in. I want to explore how the ease of doing business has improved across economies and how different lower income economies are as compared to high income ones.
+
+*Important Definition:* An economy€™s distance to frontier is reflected on a scale from 0 to 100, where 0 represents the lowest performance and 100 represents the frontier. For example, a score of 75 in DB 2016 means an economy was 25 percentage points away from the frontier constructed from the best performances across all economies and across time.
+
+
+**Graph 1**
+Unsurprisingly, the frontier scores are lowest for low income countries. We can see that there is a drop across frontier scores for all 4 - High Income, Upper Middle Income, Lower Middle Income and Low Income countries. We can observe that this is mostly due to Getting Electrify.
+I would like to explore that further - where is the maximum drop across countries
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph1.jpeg)
+
+\newpage
+
+**Graph 2 **
+As we can see, the worst performing countries belong to the developing world. Among them I would like to see which ones have improved the most.
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph2.jpeg)
+
+
+
+\newpage
+
+**Graph 3**
+It is very interesting to observe all 190 countries in the same graph. We can see that almost all high income countries (red in graph) have been stable in terms of overall distance to the frontier, ie not much change in terms of regulations towards ease of business. A surprising exception to this is South Africa.
+It is surprising to see that many of the upper middle income countries (purple in graph) have improved in their performance towards ease of business,
+The low income countries have had more fluctuations in terms of performance, with few notable improvements being - India, Kenya, Rwanda and Uganda. These are few of the countries I will explore in the next few graphs.
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph3_1.jpeg)
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph3_2.jpeg)
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph3_3.jpeg)
+
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph3_4.jpeg)
+
+
+\newpage
+
+
+\newpage
+
+**Graph 4**
+
+From this graph we can see that though the performance of Uganda and Rwanda has improved, whereas South Africa and India has worsened. Surprisingly,  Rwanda's final performance is better than that of South Africa.
+I would like to explore this trend of increase in *ease of getting credit* in the two sub Saharan countries to the other sub Saharan countries
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph4.jpeg)
+
+
+**Graph 5**
+
+On further inspection of South Africa, we can see that, there has a steep drop in the performance of South Africa, especially in getting credit. we will use *getting credit* to further explore other countries too.
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph5.jpeg)
+
+
+
+\newpage
+
+**Graph 6**
+
+*Dealing with Construction Permits* It is a measure of procedures involved, time taken, cost of construction and building quality control index. India is the worst performer in this category. Though it is trying to catch up. Other countries are more stable in their performance.
+
+*Getting Electricity* It is a measure of procedures involved, time taken, cost of construction and reliability of supply and transparency of tariff index. Countries have been stable in their performance except for Rwanda, who's performance dropped by 15 points.
+
+*Registering Property* It is a measure of procedures involved, time taken, cost of construction and quality of the land administration index including equal access to property rights. Countries have been stable in their performance.
+
+*Enforcing Contracts* It is a measure of procedures involved, time taken, cost of construction and quality of judicial processes index including weight of woman's testimony in court. Surprisingly, India is one of the worst performing countries in this aspect. Even in 2017, it is only at 35 points (with 56 being lowest among the other countries).
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph6_1.jpeg)
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph6_2.jpeg)
+
+
+
+*Getting Credit* Getting Credit is a measure of the degree to which collateral and bankruptcy laws protect the rights of borrowers and lenders and depth of credit information index of a country. Uganda's has quickly risen to catch up with the other countries. It moved from a score of 43 to 65. India and Rwanda have been stable. South Africa's performance dropped by 20 points too.
+
+*Protecting Investors*  It is a measure of extent of conflict of interest regulation (protection of shareholders against director's€™ misuse of corporate assets for personal gain) and extent of shareholder  in corporate governance. Rwanda has become worse in terms of protecting investors.
+
+*Paying Taxes* The tax payments indicator reflects the total number of taxes and contributions paid, the method of payment, the frequency of payment, the frequency of filing and the number of agencies involved; time taken to file taxes; total tax rate; and post filing procedures. India is the only country with significant drop in the performance. This is surprising as there have been stricter rules being implemented there.
+
+*Trading* Trading across Borders is a measure of documents needed for export; time to export; cost to export; documents needed for import; time taken for import; and costs involved in import.
+Both India and South Africa's performance has deteriorated, Rwanda's performance has improved. 
+
+
+
+
+**Part 2:**
+
+We are now going to focus on one country that performed even better than South Africa - Rwanda. 
+I will be using Enterprise Survey data for this part. Enterprise Survey focuses on many factors that shape a business environment. The Enterprise Survey is conducted by World Bank and its partners across the world on all small, medium and large firms.
+
+**Graph 7: Performance of Rwanada vs other Sub Saharan Countries**
+As we can see in the graph, the electricity condition, corruption and political instability is not one of the major concern of Rwanda's enterprises, unlike the rest of the Saharan countries. However, when in comes to taxes and regulation, Rwanda is lagging behind. I will be exploring it further in future graphs.
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph7.jpeg)
+
+
+\newpage
+
+**Graph 8**
+We see a remarkable improvement in electricity (reduction in outages and increase in number of firms with generators). Political instability has almost stopped being an issue. However, as ease of doing business has improved in Rwanda, there has been an increase in concern related to the informal business sector. Taxes and regulations continue to remain a major concern for the firms.
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph8.jpeg)
+
+
+\newpage
+
+**Graph9**
+An average firm in Rwanda has more number of female employees/owners as compared to the rest of sub Saharan Africa. Is this because of improvement in political stability or reduction in corruption or improvement in finances and technology. I would like to explore the relationship between these in future. 
+As we can see, most of the firms are privately owned (domestic and foreign). Does this result in more inequity? 
+
+![](/Users/mohan/OneDrive/Documents/GitHub/Ease_of_Doing_Business_R/plots/graph9.jpeg)
+
+
+
